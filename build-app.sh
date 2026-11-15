@@ -2,7 +2,8 @@
 # Builds a release FakeOS.app in ./dist
 set -e
 cd "${0:h}"
-swift build -c release
+VERSION=${VERSION:-1.0.0}
+swift build -c release --arch arm64 --arch x86_64
 mkdir -p Assets
 APP=dist/FakeOS.app
 rm -rf "$APP"
@@ -20,10 +21,13 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>FakeOS</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>CFBundleShortVersionString</key><string>$VERSION</string>
+  <key>CFBundleVersion</key><string>$VERSION</string>
+  <key>LSApplicationCategoryType</key><string>public.app-category.puzzle-games</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 PLIST
 codesign --force --sign - "$APP" >/dev/null 2>&1 || true
-echo "Built $APP"
+(cd dist && rm -f FakeOS.zip && ditto -c -k --keepParent FakeOS.app FakeOS.zip)
+echo "Built $APP and dist/FakeOS.zip (v$VERSION, $(lipo -archs "$APP/Contents/MacOS/FakeOS"))"

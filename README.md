@@ -2,17 +2,50 @@
 
 # Fake OS
 
-A haunted fake macOS desktop built with Swift + Metal. Everything you see (the windows, files, Dock, menu bar, even the cursor) is drawn by the game. It reads no real files and touches nothing on your Mac.
+**A horror puzzle game that pretends to be your Mac.**
 
-## Run
+Fake OS boots fullscreen into a convincing macOS-style desktop with its own Finder, Terminal, Activity Monitor, TextEdit, Preview, Dock, menu bar and Control Center. All of it is fake, and something in it is haunted. A program called **wren** has broken the machine's owner into 50 pieces and hidden them in the system. You get her back by poking at the fake OS: dim the screen, show hidden files, kill processes, read logs, talk to the thing in TextEdit.
+
+Everything, including the cursor, is drawn by the game in Swift and Metal. It reads none of your files and changes nothing on your Mac.
+
+<p align="center">
+  <img src="Assets/screenshots/windows.jpg" width="49%" alt="Finder, Activity Monitor and a locked file">
+  <img src="Assets/screenshots/dark.jpg" width="49%" alt="Writing that only shows when the screen is dimmed">
+  <img src="Assets/screenshots/chat.jpg" width="49%" alt="The ghost typing in TextEdit">
+  <img src="Assets/screenshots/congrats.jpg" width="49%" alt="The Congratulations screen">
+</p>
+
+## Download and play
+
+1. Download **FakeOS.zip** from the [latest release](https://github.com/lydianb79/FakeOS/releases/latest) and unzip it.
+2. The app isn't notarized, so the first time, **right-click FakeOS.app → Open → Open**. Or run:
+   ```bash
+   xattr -dr com.apple.quarantine FakeOS.app
+   ```
+3. Turn the sound on. Headphones are best.
+
+Requires macOS 13 or later, on Apple silicon or Intel. **⌘Q always quits the real game.** Progress saves automatically. To start over, use the fake Apple menu → *Erase All Progress…*.
+
+## What's inside
+
+- **A fake macOS that behaves like one.** Draggable windows with working traffic lights, a magnifying Dock, menus, Control Center sliders, a Wi-Fi menu, notifications, Spotlight, desktop icons with rubber-band selection, and About This Mac.
+- **Real-feeling apps.** Finder (with hidden files and the Trash), a Terminal with 25+ commands (`ls -a`, `ps`, `kill`, `grep`, `find`, `base64`, `man`, `say`…), Activity Monitor with live processes, TextEdit and Preview.
+- **50 puzzles in six chapters.** Each one recovers a memory into `Recovered` on the desktop. A checklist tracks your progress, and the riddles for each chapter appear as notes from Ines.
+- **A haunting that escalates.** Glitches, screen tears, a cursor that moves on its own, windows that shake, a clock stuck at 3:17 AM, and a ghost that types back.
+- **Synthesized sound.** Rain, wind, a fridge, a laptop fan that spins down when you kill wren, footsteps upstairs, whispers in one ear and a heartbeat that speeds up. No audio files.
+- **Two endings and a Congratulations screen.**
+
+## How to play (no spoilers)
+
+Start with **READ ME.txt** on the desktop and take it literally. Everything you can touch is a possible clue: the menu bar, the photos, the Wi-Fi names, the clock. Once you find Ines's notes, each chapter's riddles come from them. If you get stuck, wait: wren gets impatient and starts dropping hints. The full solution is at the bottom of this page.
+
+## Run from source
 
 ```bash
 swift run FakeOS                      # fullscreen
-swift run FakeOS --windowed           # 1440×900 window for development
+swift run FakeOS --windowed           # 1440×900 window
 ./build-app.sh && open dist/FakeOS.app
 ```
-
-**⌘Q always quits the real game.**
 
 ## How it's built
 
