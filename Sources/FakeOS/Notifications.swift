@@ -7,8 +7,10 @@ final class Banner {
     var slide: Float = 0
     var dismissed = false
     var y: CGFloat = 0
+    let app: AppKind
 
     init(world: World, app: AppKind, title: String, body: String) {
+        self.app = app
         let w: CGFloat = 344
         let bodyH = min(48, Draw.textHeight(body, width: w - 70 - 16, font: Draw.font(12.5)))
         let h = max(62, 28 + bodyH + 12)

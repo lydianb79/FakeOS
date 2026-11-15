@@ -37,8 +37,11 @@ final class ProcessTable {
 
     var wrenCPU: Double = 31.7
 
-    func list(wren: (Bool, Int)? = nil) -> [FakeProcess] {
+    func list(wren: (Bool, Int)? = nil, mimic: Int? = nil) -> [FakeProcess] {
         var l = base
+        if let m = mimic {
+            l.append(.init(name: "ines", pid: m, user: "wren", cpu: 0.0, baseCPU: 0, threads: 1, path: "/Library/wren/mirror/ines"))
+        }
         if let w = wren, w.0 {
             l.append(.init(name: "wren", pid: w.1, user: "wren", cpu: wrenCPU, baseCPU: 31.7, threads: 317, path: "/Library/wren/wren"))
         }
@@ -64,7 +67,8 @@ final class ActivityMonitorWindow: FakeWindow {
     private func reload() {
         world.processes.jitter()
         world.processes.wrenCPU = 31.7 + Double.random(in: -0.4...0.4) + (world.story.haunt > 0.5 ? 30 : 0)
-        rows = world.processes.list(wren: (world.story.wrenRunning, world.story.wrenPID))
+        rows = world.processes.list(wren: (world.story.wrenRunning, world.story.wrenPID),
+                                    mimic: world.story.mimicAlive ? world.story.mimicPID : nil)
         let total = rows.reduce(0) { $0 + $1.cpu } / 100
         history.removeFirst()
         history.append(min(1, total + Double.random(in: -0.03...0.03)))
@@ -212,6 +216,8 @@ final class ActivityMonitorWindow: FakeWindow {
             guard let self = self, i > 0 else { return true }
             if p.name == "wren" {
                 if self.world.story.wrenRunning && self.world.story.wrenPID == p.pid { self.world.story.killWren(from: .activityMonitor) }
+            } else if p.name == "ines" && p.pid == self.world.story.mimicPID {
+                self.world.story.killMimic()
             } else if p.name == "Finder" {
                 self.world.windows.filter { $0 is FinderWindow }.forEach { self.world.close($0) }
             } else {

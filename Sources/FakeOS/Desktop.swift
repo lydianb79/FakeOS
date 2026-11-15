@@ -97,7 +97,11 @@ final class Desktop {
             let r = CGRect(x: min(b.x, p.x), y: min(b.y, p.y), width: abs(p.x - b.x), height: abs(p.y - b.y))
             band = r
             let newSel = Set(icons.filter { $0.iconRect.intersects(r) }.map { ObjectIdentifier($0) })
-            if newSel != selected { selected = newSel; dirty = true }
+            if newSel != selected {
+                selected = newSel
+                dirty = true
+                if icons.count >= 3 && selected.count == icons.count { world.story.desktopSelectedAll() }
+            }
         }
     }
 

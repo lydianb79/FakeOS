@@ -231,6 +231,9 @@ enum Pictures {
         case "beach": beach(r, ctx)
         case "cat": cat(r, ctx)
         case "window": window(r, ctx)
+        case "fridge": fridge(r, ctx)
+        case "us": us(r, ctx)
+        case "tooth": tooth(r, ctx)
         default: Draw.fill(ctx, r, NSColor(white: 0.5, alpha: 1))
         }
     }
@@ -305,6 +308,69 @@ enum Pictures {
         // two pale points in the doorway
         Draw.circle(ctx, CGPoint(x: r.maxX - r.width * 0.215, y: r.minY + r.height * 0.3), r.width * 0.006, NSColor(white: 0.9, alpha: 0.8))
         Draw.circle(ctx, CGPoint(x: r.maxX - r.width * 0.185, y: r.minY + r.height * 0.3), r.width * 0.006, NSColor(white: 0.9, alpha: 0.8))
+    }
+
+    /// Fridge door with magnet letters. The bright ones spell LUMEN.
+    static func fridge(_ r: CGRect, _ ctx: CGContext) {
+        Draw.gradient(ctx, r, Draw.hex(0xEDEFF2), Draw.hex(0xCDD1D6))
+        Draw.fill(ctx, CGRect(x: r.minX + r.width * 0.86, y: r.minY + r.height * 0.2, width: r.width * 0.03, height: r.height * 0.5),
+                  Draw.hex(0xA9AEB5), radius: r.width * 0.01)
+        Draw.line(ctx, CGPoint(x: r.minX, y: r.minY + r.height * 0.08), CGPoint(x: r.maxX, y: r.minY + r.height * 0.08), Draw.hex(0xB8BCC2), width: 2)
+        let letters: [(String, CGFloat, CGFloat, UInt32, CGFloat)] = [
+            ("L", 0.2, 0.4, 0xE0322B, -0.12), ("U", 0.32, 0.43, 0x2E7CF6, 0.08), ("M", 0.45, 0.39, 0xF5B400, -0.05),
+            ("E", 0.59, 0.44, 0x28C840, 0.1), ("N", 0.71, 0.4, 0x9B59D0, -0.08),
+            ("a", 0.25, 0.72, 0x8E8E93, 0.3), ("x", 0.55, 0.78, 0x8E8E93, -0.2), ("o", 0.68, 0.7, 0x8E8E93, 0.1), ("k", 0.12, 0.62, 0x8E8E93, -0.3),
+        ]
+        for (l, x, y, col, a) in letters {
+            ctx.saveGState()
+            ctx.translateBy(x: r.minX + r.width * x, y: r.minY + r.height * y)
+            ctx.rotate(by: a)
+            ctx.setShadow(offset: CGSize(width: 1, height: 2), blur: 3, color: NSColor(white: 0, alpha: 0.35).cgColor)
+            Draw.text(l, at: CGPoint(x: -r.height * 0.06, y: -r.height * 0.09), font: NSFont.systemFont(ofSize: r.height * 0.16, weight: .black), color: Draw.hex(col))
+            ctx.restoreGState()
+        }
+        // a note under a magnet
+        ctx.saveGState()
+        ctx.translateBy(x: r.minX + r.width * 0.36, y: r.minY + r.height * 0.6)
+        ctx.rotate(by: 0.06)
+        Draw.fill(ctx, CGRect(x: 0, y: 0, width: r.width * 0.2, height: r.height * 0.22), Draw.hex(0xFFF3A6))
+        Draw.text("vet thurs\nmilk\ncall mom", at: CGPoint(x: r.width * 0.015, y: r.height * 0.02), font: Draw.hand(r.height * 0.04), color: Draw.hex(0x333366))
+        ctx.restoreGState()
+    }
+
+    /// Two people on a sofa. One face is scratched out.
+    static func us(_ r: CGRect, _ ctx: CGContext) {
+        Draw.gradient(ctx, r, Draw.hex(0xE9B98A), Draw.hex(0xA8714E))
+        Draw.fill(ctx, CGRect(x: r.minX + r.width * 0.12, y: r.minY + r.height * 0.55, width: r.width * 0.76, height: r.height * 0.3), Draw.hex(0x5B6B7A), radius: r.height * 0.05)
+        for (dx, col) in [(0.38, 0x3B2A24), (0.6, 0x2A2A33)] as [(CGFloat, UInt32)] {
+            let x = r.minX + r.width * dx
+            Draw.fill(ctx, CGRect(x: x - r.width * 0.07, y: r.minY + r.height * 0.42, width: r.width * 0.14, height: r.height * 0.3), Draw.hex(col), radius: r.width * 0.04)
+            Draw.circle(ctx, CGPoint(x: x, y: r.minY + r.height * 0.34), r.width * 0.055, Draw.hex(0xE8C3A0))
+        }
+        // scratches over the second face
+        let c = CGPoint(x: r.minX + r.width * 0.6, y: r.minY + r.height * 0.34)
+        for i in 0..<14 {
+            let a = CGFloat(i) * 0.37
+            Draw.line(ctx, CGPoint(x: c.x - cos(a) * r.width * 0.07, y: c.y - sin(a) * r.width * 0.06),
+                      CGPoint(x: c.x + cos(a + 0.4) * r.width * 0.07, y: c.y + sin(a + 0.4) * r.width * 0.06), Draw.hex(0x111111), width: 2.2)
+        }
+    }
+
+    static func tooth(_ r: CGRect, _ ctx: CGContext) {
+        Draw.fill(ctx, r, Draw.hex(0x15151A))
+        let c = CGPoint(x: r.midX, y: r.midY)
+        let s = r.height * 0.25
+        let p = CGMutablePath()
+        p.move(to: CGPoint(x: c.x - s, y: c.y - s * 0.6))
+        p.addQuadCurve(to: CGPoint(x: c.x + s, y: c.y - s * 0.6), control: CGPoint(x: c.x, y: c.y - s * 1.3))
+        p.addLine(to: CGPoint(x: c.x + s * 0.6, y: c.y + s))
+        p.addLine(to: CGPoint(x: c.x + s * 0.2, y: c.y + s * 0.4))
+        p.addLine(to: CGPoint(x: c.x - s * 0.2, y: c.y + s * 0.4))
+        p.addLine(to: CGPoint(x: c.x - s * 0.6, y: c.y + s))
+        p.closeSubpath()
+        ctx.addPath(p)
+        ctx.setFillColor(Draw.hex(0xF1EDE3).cgColor)
+        ctx.fillPath()
     }
 
     static func window(_ r: CGRect, _ ctx: CGContext) {

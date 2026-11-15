@@ -114,7 +114,7 @@ final class MenuPopup: Popup {
 final class WifiPopup: Popup {
     var highlighted: Int?
     let ghostName: String
-    let networks = ["NETGEAR-2F", "DIRECT-37-HP OfficeJet", "Vodafone-5G-A41C"]
+    let networks = ["NETGEAR-2F", "MochiNet", "DIRECT-37-HP OfficeJet"]
 
     init(world: World, at origin: CGPoint, ghostName: String) {
         self.ghostName = ghostName
@@ -248,7 +248,7 @@ final class ControlCenterPopup: Popup {
     private func setValue(_ i: Int, _ p: CGPoint) {
         let t = track(i == 0 ? displayModule : soundModule)
         let v = Float(max(0, min(1, (p.x - t.minX) / t.width)))
-        if i == 0 { world.setBrightness(max(0.02, v)) } else { world.audio.master = v }
+        if i == 0 { world.setBrightness(max(0.02, v)) } else { world.audio.master = v; world.story.volumeChanged(v) }
         dirty = true
     }
 
@@ -259,7 +259,7 @@ final class ControlCenterPopup: Popup {
             world.closePopup()
             world.openWifiMenu()
         } else if CGRect(x: 164, y: 10, width: 146, height: 62).contains(p) {
-            world.story.ambientWhisper("you can't focus. i'm right here.")
+            world.story.focusTapped()
         }
     }
 
@@ -364,6 +364,8 @@ final class MenuBar {
                 .separator,
                 MenuItem("Lock Screen", "^⌘Q", enabled: false),
                 MenuItem("Log Out ines…", "⇧⌘Q") { w.restart() },
+                .separator,
+                MenuItem("Erase All Progress…") { w.confirmEraseProgress() },
             ]
         case 1:
             let app = w.activeApp
@@ -450,10 +452,10 @@ final class MenuBar {
                     MenuItem("Battery                          13%", enabled: false),
                     MenuItem("Power Source: wren", enabled: false),
                     .separator,
-                    MenuItem("Battery Settings…") { self.world.story.ambientWhisper("i don't need a battery.") },
+                    MenuItem("Battery Settings…") { self.world.story.batterySettings() },
                 ], at: CGPoint(x: r.minX - 140, y: height + 2))
             case "search":
-                world.story.ambientWhisper("you won't find her by searching.")
+                world.openSpotlight()
             default: break
             }
             dirty = true

@@ -12,6 +12,7 @@ final class TerminalWindow: FakeWindow {
     private var ghostQueue: [Character] = []
     private var ghostTimer: Float = 0
     private var awaitingPassword = false
+    private var sudoBuffer = ""
     let font = Draw.mono(12)
     let fg = NSColor(white: 0.92, alpha: 1)
     override var backgroundColor: NSColor { Draw.hex(0x1E1E1E) }
@@ -119,10 +120,7 @@ final class TerminalWindow: FakeWindow {
         scrollBack = 0
         if k.isReturn {
             if awaitingPassword {
-                awaitingPassword = false
-                print("Password:")
-                print("Sorry, try again.")
-                world.story.sudoAttempt()
+                submitSudo(sudoBuffer)
             } else {
                 let cmd = input
                 print(prompt + cmd)
@@ -142,7 +140,7 @@ final class TerminalWindow: FakeWindow {
         } else if k.isTab {
             complete()
         } else if !k.text.isEmpty {
-            if !awaitingPassword { input += k.text }
+            if awaitingPassword { sudoBuffer += k.text } else { input += k.text }
         }
         caretOn = true
         caretTimer = 0
@@ -205,7 +203,18 @@ final class TerminalWindow: FakeWindow {
         return rows.joined(separator: "\n")
     }
 
-    private func run(_ line: String) {
+    func submitSudo(_ password: String) {
+        awaitingPassword = false
+        sudoBuffer = ""
+        print("Password:")
+        if world.story.sudoAttempt(password: password) {
+            print("wren is not in the sudoers file. wren IS the sudoers file.", color: Draw.hex(0xFF8A8A))
+        } else {
+            print("Sorry, try again.")
+        }
+    }
+
+    func run(_ line: String) {
         let story: Story = world.story
         let args = tokenize(line)
         guard let cmd = args.first else { return }
@@ -213,7 +222,7 @@ final class TerminalWindow: FakeWindow {
         let fs: FileSystem = world.fs
         switch cmd {
         case "help":
-            print("Commands: ls [-a] [dir], cd <dir>, pwd, cat <file>, open <file>, ps [aux], kill <pid>,\n          killall <name>, whoami, date, uptime, clear, echo, sudo, exit")
+            print("Commands: ls [-a] [dir], cd <dir>, pwd, cat <file>, open <file>, ps [aux], kill <pid>,\n          killall <name>, whoami, date, cal, uptime, history, clear, echo, say, grep, find,\n          rev, base64 -d, ping, man, sudo, exit")
         case "ls":
             let showAll = rest.contains { $0.hasPrefix("-") && $0.contains("a") }
             let long = rest.contains { $0.hasPrefix("-") && $0.contains("l") }
@@ -239,6 +248,7 @@ final class TerminalWindow: FakeWindow {
                 print(columns(names))
             }
             if showAll, dir === fs.home { story.didRevealHidden() }
+            if dir === fs.trash { story.solve(49) }
         case "cd":
             let target = rest.first ?? "~"
             if let n = fs.resolve(target, from: cwd), n.kind == .folder {
@@ -284,11 +294,17 @@ final class TerminalWindow: FakeWindow {
             if story.wrenRunning {
                 print(String(format: "%5d ??       317:17.00 /Library/wren/wren --watch ines", story.wrenPID), color: Draw.hex(0xFF8A8A))
             }
+            if story.mimicAlive {
+                print(String(format: "%5d ??         0:00.00 /Library/wren/mirror/ines", story.mimicPID))
+            }
         case "kill":
             let pids = rest.filter { !$0.hasPrefix("-") }.compactMap { Int($0) }
             guard let pid = pids.first else { print("kill: usage: kill [-s sigspec | -n signum | -sigspec] pid"); return }
             if story.wrenRunning && pid == story.wrenPID {
                 story.killWren(from: .terminal)
+            } else if story.mimicAlive && pid == story.mimicPID {
+                print("[2]  + \(pid) killed     ines (mirror)")
+                story.killMimic()
             } else if pid == 412 {
                 print("[process completed]")
                 world.close(self)
@@ -296,21 +312,27 @@ final class TerminalWindow: FakeWindow {
                 print("kill: kill \(pid) failed: operation not permitted")
             }
         case "killall", "pkill":
-            if rest.last == "wren" {
+            if rest.last == "ines" && story.mimicAlive {
+                story.killMimic()
+            } else if rest.last == "wren" {
                 if story.wrenRunning { story.killWren(from: .terminal) } else { print("No matching processes belonging to you were found") }
             } else {
                 print("No matching processes belonging to you were found")
             }
         case "whoami":
             print(story.whoami)
+            if !story.wrenRunning, story.solve(8) { print("(for now)", color: NSColor(white: 0.5, alpha: 1)) }
         case "date":
             print("Fri Nov 13 03:17:00 \(story.ended ? "CET" : "CET") 2026")
         case "uptime":
-            print(" 3:17  up 0 secs, 2 users, load averages: 3.17 3.17 3.17")
+            print(" 3:17  up 1,044 days, 2 users, load averages: 3.17 3.17 3.17")
+            story.solve(25)
         case "clear":
             lines.removeAll()
         case "echo":
-            print(rest.joined(separator: " "))
+            let text = rest.joined(separator: " ")
+            print(text)
+            if text.lowercased().contains("ines") { story.solve(41) }
         case "sudo":
             awaitingPassword = true
         case "rm", "rmdir", "mv":
@@ -322,8 +344,87 @@ final class TerminalWindow: FakeWindow {
         case "wren":
             print("wren is already running.", color: Draw.hex(0xFF8A8A))
         case "say":
-            print("")
-            story.ambientWhisper("i don't have a voice. she did.")
+            let text = rest.joined(separator: " ")
+            if text.isEmpty { print("usage: say <text>"); return }
+            story.speak(text)
+        case "history":
+            let h = fs.home.child(".zsh_history")?.content.split(separator: "\n").map(String.init) ?? []
+            for (i, l) in (h + history).enumerated() { print(String(format: "%5d  %@", i + 1, l)) }
+            story.solve(7)
+        case "cal":
+            print("""
+                November 2026
+            Su Mo Tu We Th Fr Sa
+             1  2  3  4  5  6  7
+             8  9 10 11 12 13 14
+            15 16 17 18 19 20 21
+            22 23 24 25 26 27 28*
+            29 30
+
+            * reminder deleted by wren: "my birthday 🎂"
+            """)
+        case "base64":
+            guard rest.contains(where: { $0 == "-d" || $0 == "-D" || $0 == "--decode" }),
+                  let t = rest.last(where: { !$0.hasPrefix("-") }) else { print("usage: base64 -d <file>"); return }
+            guard let n = fs.resolve(t, from: cwd), n.kind == .text else { print("base64: \(t): No such file or directory"); return }
+            if let d = Data(base64Encoded: n.content.trimmingCharacters(in: .whitespacesAndNewlines)), let out = String(data: d, encoding: .utf8) {
+                print(out, color: Draw.hex(0x9FC7FF))
+                if n.name == "note.b64" { story.solve(16) }
+            } else {
+                print("base64: invalid input")
+            }
+        case "rev":
+            guard let t = rest.first, let n = fs.resolve(t, from: cwd), n.kind == .text else { print("usage: rev <file>"); return }
+            for l in n.content.split(separator: "\n", omittingEmptySubsequences: false) { print(String(l.reversed())) }
+            if n.name == "backwards.txt" { story.solve(17) }
+        case "grep":
+            let parts = rest.filter { !$0.hasPrefix("-") }
+            guard parts.count >= 2 else { print("usage: grep <pattern> <file>"); return }
+            let pattern = parts[0].lowercased()
+            guard let n = fs.resolve(parts[1], from: cwd), n.kind == .text else { print("grep: \(parts[1]): No such file or directory"); return }
+            let hits = n.content.split(separator: "\n").filter { $0.lowercased().contains(pattern) }
+            hits.forEach { print(String($0)) }
+            if n.name == "wren.log" && pattern.contains("ines") { story.solve(18) }
+        case "find":
+            guard let i = rest.firstIndex(of: "-name"), i + 1 < rest.count else { print("usage: find <path> -name <name>"); return }
+            let name = rest[i + 1].replacingOccurrences(of: "*", with: "").lowercased()
+            let start = rest.first.flatMap { $0.hasPrefix("-") ? nil : fs.resolve($0, from: cwd) } ?? cwd
+            let hits = ([start] + start.descendants).filter { $0.name.lowercased().contains(name) }
+            hits.forEach { print($0.path) }
+            if hits.contains(where: { $0.name == ".tooth" }) { story.solve(20) }
+        case "ping":
+            guard let host = rest.last?.lowercased() else { print("usage: ping <host>"); return }
+            if host.contains("mochi") {
+                print("PING mochi (10.0.3.17): 56 data bytes")
+                for i in 0..<3 { print("64 bytes from 10.0.3.17: icmp_seq=\(i) ttl=64 time=3.17 ms   (purr)") }
+                story.solve(21)
+            } else if host.contains("ines") {
+                print("PING ines: Request timeout for icmp_seq 0")
+                print("PING ines: she is in ~/.Trash", color: Draw.hex(0xFF8A8A))
+            } else {
+                print("ping: cannot resolve \(host): wren won't let you leave")
+            }
+        case "man":
+            guard rest.last == "wren" else { print("No manual entry for \(rest.last ?? "")"); return }
+            print("""
+            WREN(1)                     General Commands Manual                    WREN(1)
+
+            NAME
+                 wren – a companion that learns how you work
+
+            SYNOPSIS
+                 wren [--watch user] [--become user]
+
+            DESCRIPTION
+                 wren watches. wren learns. wren keeps your important things safe.
+
+            BUGS
+                 wren cannot be uninstalled.
+                 wren pauses for 30 seconds when quit.
+                 wren cannot read files that begin with a dot.
+                 if a user is archived to the Trash, wren cannot erase them while they are in use.
+            """)
+            story.solve(24)
         default:
             print("zsh: command not found: \(cmd)")
         }

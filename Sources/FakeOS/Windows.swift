@@ -247,12 +247,22 @@ final class PreviewWindow: FakeWindow {
         }
     }
 
-    override func drawContent(_ ctx: CGContext) {
+    private var imageRect: CGRect {
         let c = contentRect.insetBy(dx: 16, dy: 16)
         let aspect: CGFloat = 4.0 / 3.0
         var w = c.width, h = w / aspect
         if h > c.height { h = c.height; w = h * aspect }
-        let r = CGRect(x: c.midX - w / 2, y: c.midY - h / 2, width: w, height: h)
+        return CGRect(x: c.midX - w / 2, y: c.midY - h / 2, width: w, height: h)
+    }
+
+    override func mouseDown(_ p: CGPoint, clicks: Int) {
+        let r = imageRect
+        guard r.contains(p) else { return }
+        world.story.previewClicked(picture, (p.x - r.minX) / r.width, (p.y - r.minY) / r.height)
+    }
+
+    override func drawContent(_ ctx: CGContext) {
+        let r = imageRect
         ctx.saveGState()
         ctx.clip(to: r)
         Pictures.draw(picture, in: r, ctx: ctx)
@@ -301,8 +311,7 @@ final class AboutWindow: FakeWindow {
 
     override func mouseDown(_ p: CGPoint, clicks: Int) {
         if CGRect(x: frame.width / 2 - 50, y: 375, width: 100, height: 24).contains(p) {
-            world.glitch(0.5)
-            world.notify(.wren, "wren", "there is no more info. there is only me.")
+            world.story.aboutMoreInfo()
         }
     }
 }

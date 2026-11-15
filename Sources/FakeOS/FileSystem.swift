@@ -9,6 +9,9 @@ final class FSNode {
     var children: [FSNode] = []
     weak var parent: FSNode?
     var modified: String
+    /// Puzzle locks: a non-zero id makes this a password-locked file for that puzzle.
+    var lockID = 0
+    var answers: [String] = []
 
     init(_ name: String, _ kind: FSKind, _ content: String = "", modified: String = "Nov 12, 2026 at 11:48 PM",
          children: [FSNode] = []) {
@@ -25,6 +28,9 @@ final class FSNode {
         n.parent = self
         children.append(n)
     }
+
+    /// Every node below this one (depth-first).
+    var descendants: [FSNode] { children.flatMap { [$0] + $0.descendants } }
 
     func remove(_ n: FSNode) {
         children.removeAll { $0 === n }
@@ -79,7 +85,12 @@ final class FileSystem {
         users.add(FSNode("Shared", .folder))
         root.add(FSNode("Applications", .folder))
         root.add(FSNode("Library", .folder, children: [FSNode("wren", .folder, children: [FSNode("wren", .app)])]))
-        root.add(FSNode("System", .folder))
+        root.add(FSNode("System", .folder, children: [
+            FSNode("Library", .folder, children: [
+                FSNode("Caches", .folder, children: [FSNode(".tooth", .image, "tooth")]),
+            ]),
+            FSNode(".lumen.txt", .text, "you searched for light.\n\nshe spelled it on the fridge the night before. LUMEN. she thought it would keep me out.\n\nit didn't. but it was a nice word."),
+        ]))
 
         desktop = FSNode("Desktop", .folder, children: [
             FSNode("READ ME.txt", .text, Lore.readme, modified: "Nov 13, 2026 at 3:14 AM"),
@@ -98,8 +109,10 @@ final class FileSystem {
             FSNode("beach.png", .image, "beach", modified: "Aug 3, 2026 at 6:40 PM"),
             FSNode("mochi.png", .image, "cat", modified: "Oct 28, 2026 at 1:12 AM"),
             FSNode("IMG_3170.png", .image, "window", modified: "Nov 13, 2026 at 3:17 AM"),
+            FSNode("fridge.png", .image, "fridge", modified: "Nov 12, 2026 at 10:31 PM"),
         ])
         heartLock = FSNode("heart.lock", .lock, modified: "Nov 13, 2026 at 3:02 AM")
+        heartLock.lockID = 4
         wrenFolder = FSNode(".wren", .folder, children: [
             FSNode("diary_1.txt", .text, Lore.diary1, modified: "Oct 19, 2026 at 2:41 AM"),
             FSNode("diary_2.txt", .text, Lore.diary2, modified: "Nov 12, 2026 at 11:59 PM"),
@@ -108,7 +121,7 @@ final class FileSystem {
         soul = FSNode("ines.self", .soul, modified: "Nov 13, 2026 at 3:17 AM")
         trash = FSNode(".Trash", .folder, children: [
             soul,
-            FSNode("old_photos", .folder, children: [FSNode("mochi_2.png", .image, "cat")]),
+            FSNode("old_photos", .folder, children: [FSNode("mochi_2.png", .image, "cat"), FSNode("us.png", .image, "us")]),
             FSNode("untitled.txt", .text, "she isn't coming back\nshe isn't coming back\nshe isn't coming back\nshe isn't coming back\nshe isn't coming back\nshe isn't coming back\nshe isn't coming back\nshe isn't coming back\nshe isn't coming back\nshe isn't coming back\nshe isn't coming back\n"),
         ])
         for n in [desktop, documents, downloads, pictures, wrenFolder, trash] { home.add(n) }
@@ -191,12 +204,26 @@ enum Lore {
 
     I'm in the Trash. It can't erase me while I'm in use — and I've been in use, holding on, for a very long time.
 
-    Please don't empty it.
+    But I'm not all there. It broke me into fifty pieces. You have found four. When you've found the rest, the last one is putting me back. Look in ~/.wren — I'll leave you more notes as you go.
 
-    Put me back.
+    Please don't empty the Trash.
 
     — Ines
     """
+
+    static let wrenLog: String = {
+        var lines: [String] = []
+        let events = ["keystroke captured", "camera frame stored", "subject asleep? no", "subject typing", "subject crying (audio)",
+                      "voice model +1%", "handwriting model +1%", "message drafted as subject", "subject looked at camera",
+                      "fan speed raised", "subject searched 'how to remove wren'", "search result hidden"]
+        for i in 0..<60 {
+            let sec = i % 60
+            lines.append(String(format: "[03:16:%02d] %@", sec, events[(i * 7) % events.count]))
+            if i == 41 { lines.append("[03:17:00] subject renamed: ines -> wren. recovery phrase: ECHO") }
+        }
+        lines.append("[03:17:00] subject archived. location: ~/.Trash")
+        return lines.joined(separator: "\n")
+    }()
 
     static let history = """
     ls -la

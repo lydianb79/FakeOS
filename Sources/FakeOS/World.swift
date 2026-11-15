@@ -58,6 +58,12 @@ final class World {
     private var endCardAlpha: Float = 0
     private var panicCanvas: Canvas?
     private var cascade = 0
+    private var softBoot = false
+    private var congrats: Canvas?
+    var congratsVisible: Bool { congrats != nil }
+    private var congratsAlpha: Float = 0
+    private struct Confetto { var p: CGPoint; var v: CGPoint; var rot: CGFloat; var spin: CGFloat; var color: RGBA; var size: CGSize }
+    private var confetti: [Confetto] = []
 
     // input
     private enum Target { case none, popup, window(FakeWindow), drag(FakeWindow, CGPoint), desktop, menubar }
@@ -107,6 +113,10 @@ final class World {
         cascade = 0
         ghostLayerDirty = true
         audio.staticLevel = 0
+        softBoot = false
+        congrats = nil
+        confetti.removeAll()
+        story.restore()
     }
 
     func resize(size: CGSize, scale: CGFloat) {
@@ -136,7 +146,10 @@ final class World {
         hijackTime = duration
     }
 
-    func setBrightness(_ v: Float) { brightness = v }
+    func setBrightness(_ v: Float) {
+        brightness = v
+        story.brightnessChanged(v)
+    }
 
     func fadeTo(color: RGBA, duration: Float) {
         fadeColor = color
@@ -147,6 +160,10 @@ final class World {
     func fadeFrom(duration: Float) {
         fadeTarget = 0
         fadeSpeed = 1 / max(0.01, duration)
+    }
+
+    func notifyPiece(_ p: Puzzle, count: Int) {
+        notify(.finder, "Piece \(count) of \(Puzzles.total) recovered", "“\(p.title)” — saved to Recovered on the Desktop.")
     }
 
     func notify(_ app: AppKind, _ title: String, _ body: String) {
@@ -270,6 +287,7 @@ final class World {
             story.didRead(n)
         case .image:
             open(PreviewWindow(world: self, name: n.name, picture: n.content))
+            story.didOpenImage(n)
             if n.content == "screenshot" { after(2.5) { self.glitch(0.3) } }
         case .lock, .soul:
             story.openLocked(n)
@@ -277,7 +295,8 @@ final class World {
             alert(icon: .preview, heading: "The file “\(n.name)” could not be opened.",
                   message: "It may be damaged or use a file format that Preview doesn’t recognize.", buttons: ["OK"])
         case .dmg:
-            alert(icon: .wren, heading: "“wren” is already installed.", message: "wren will always be installed.", buttons: ["OK"])
+            alert(icon: .wren, heading: "“wren” is already installed.",
+                  message: "wren 1.0.3 (internal build name: HOLLOW) will always be installed.", buttons: ["OK"])
             glitch(0.4)
         case .app:
             launch(.wren)
@@ -320,6 +339,13 @@ final class World {
 
     func closePopup() { popup = nil }
 
+    func openSpotlight() {
+        closePopup()
+        menuBar.openRight = "search"
+        menuBar.dirty = true
+        popup = SpotlightPopup(world: self)
+    }
+
     func openWifiMenu(anchor: CGRect? = nil) {
         let r = anchor ?? menuBar.rightRects.first(where: { $0.0 == "wifi" })?.1 ?? CGRect(x: size.width - 200, y: 0, width: 30, height: 24)
         menuBar.openRight = "wifi"
@@ -332,12 +358,39 @@ final class World {
     func sleepDisplay() {
         fadeTo(color: .rgba(0, 0, 0), duration: 0.4)
         after(2.5) { self.fadeFrom(duration: 0.6); self.glitch(0.5) }
-        after(3.2) { self.notify(.wren, "wren", "i don't sleep.") }
+        after(3.2) {
+            self.notify(.wren, "wren", "i don't sleep.")
+            self.story.didWake()
+        }
     }
 
+    /// Restart / Log Out: replays the boot but keeps the machine's state.
     func restart() {
         fadeTo(color: .rgba(0, 0, 0), duration: 0.6)
-        after(1.0) { self.reset() }
+        after(1.0) {
+            self.windows.removeAll()
+            self.popup = nil
+            self.phase = .boot
+            self.bootTime = 0
+            self.fade = 0
+            self.fadeTarget = 0
+            self.softBoot = true
+        }
+    }
+
+    /// Start over completely (after the bad ending, or "Erase All Progress").
+    func hardReset() {
+        Story.clearSave()
+        fadeTo(color: .rgba(0, 0, 0), duration: 0.4)
+        after(0.6) { self.reset() }
+    }
+
+    func confirmEraseProgress() {
+        alert(icon: .finder, heading: "Erase all progress?", message: "Every recovered piece will be lost and the game starts over.",
+              buttons: ["Cancel", "Erase"]).onButton = { [weak self] i, _ in
+            if i == 1 { self?.hardReset() }
+            return true
+        }
     }
 
     func shutDown() {
@@ -362,6 +415,77 @@ final class World {
         }
         endCard = c
         endCardAlpha = 0
+    }
+
+    // MARK: - Congratulations
+
+    func showCongratulations() {
+        let s = story!
+        let mins = Int(s.playTime) / 60
+        let time = mins >= 60 ? "\(mins / 60) h \(mins % 60) min" : "\(max(1, mins)) min"
+        let c = Canvas(size: CGSize(width: 640, height: 430), scale: scale)
+        c.draw { ctx in
+            let w: CGFloat = 640
+            Draw.text("F A K E   O S", in: CGRect(x: 0, y: 34, width: w, height: 18), font: Draw.font(12, .semibold),
+                      color: NSColor(white: 0.2, alpha: 0.55), align: .center)
+            Draw.text("Congratulations", in: CGRect(x: 0, y: 62, width: w, height: 70), font: Draw.font(54, .heavy),
+                      color: Draw.hex(0x1D1D1F), align: .center)
+            Draw.text("You put Ines back together.", in: CGRect(x: 0, y: 136, width: w, height: 26), font: Draw.font(19, .medium),
+                      color: NSColor(white: 0.25, alpha: 1), align: .center)
+            // stat tiles
+            let stats = [("50 / 50", "pieces recovered"), (time, "to bring her home"), ("\(s.killCount)", s.killCount == 1 ? "time you killed wren" : "times you killed wren"),
+                         ("\(s.wrongPasswords)", s.wrongPasswords == 1 ? "wrong password" : "wrong passwords")]
+            let tw: CGFloat = 132, gap: CGFloat = 12
+            let x0 = (w - (tw * 4 + gap * 3)) / 2
+            for (i, st) in stats.enumerated() {
+                let r = CGRect(x: x0 + CGFloat(i) * (tw + gap), y: 190, width: tw, height: 92)
+                Draw.fill(ctx, r, NSColor(white: 0, alpha: 0.05), radius: 16)
+                Draw.text(st.0, in: CGRect(x: r.minX, y: r.minY + 18, width: tw, height: 34), font: Draw.font(st.0.count > 7 ? 19 : 26, .bold),
+                          color: Draw.hex(0x1D1D1F), align: .center)
+                Draw.text(st.1, in: CGRect(x: r.minX + 8, y: r.minY + 56, width: tw - 16, height: 30), font: Draw.font(11),
+                          color: NSColor(white: 0.4, alpha: 1), align: .center)
+            }
+            Draw.text("The clock is moving again. wren is gone. Thank you for playing.", in: CGRect(x: 40, y: 312, width: w - 80, height: 22),
+                      font: Draw.font(14), color: NSColor(white: 0.3, alpha: 1), align: .center)
+            Draw.text("Click to keep exploring  ·  ⌘Q to quit", in: CGRect(x: 0, y: 376, width: w, height: 18), font: Draw.font(12),
+                      color: NSColor(white: 0.45, alpha: 1), align: .center)
+        }
+        congrats = c
+        congratsAlpha = 0
+        audio.systemSound("Hero")
+        let palette: [RGBA] = [.rgba(1, 0.37, 0.34), .rgba(1, 0.74, 0.18), .rgba(0.16, 0.78, 0.25), .rgba(0.04, 0.52, 1),
+                               .rgba(0.69, 0.32, 0.87), .rgba(1, 0.62, 0.55)]
+        confetti = (0..<220).map { _ in
+            Confetto(p: CGPoint(x: CGFloat.random(in: 0...size.width), y: CGFloat.random(in: -size.height...(-10))),
+                     v: CGPoint(x: CGFloat.random(in: -40...40), y: CGFloat.random(in: 90...220)),
+                     rot: CGFloat.random(in: 0...6), spin: CGFloat.random(in: -4...4), color: palette.randomElement()!,
+                     size: CGSize(width: CGFloat.random(in: 6...11), height: CGFloat.random(in: 10...18)))
+        }
+    }
+
+    private func updateConfetti(_ dt: Float) {
+        let d = CGFloat(dt)
+        for i in confetti.indices {
+            confetti[i].p.x += (confetti[i].v.x + sin(CGFloat(time) * 2 + CGFloat(i)) * 30) * d
+            confetti[i].p.y += confetti[i].v.y * d
+            confetti[i].rot += confetti[i].spin * d
+            if confetti[i].p.y > size.height + 20 { confetti[i].p.y = -20; confetti[i].p.x = CGFloat.random(in: 0...size.width) }
+        }
+    }
+
+    private func drawCongratulations(_ r: Renderer) {
+        guard let c = congrats else { return }
+        let a = congratsAlpha
+        r.quad(CGRect(origin: .zero, size: size), .rgba(0.02, 0.02, 0.06, 0.45 * a))
+        for f in confetti {
+            // flutter: squash the width with rotation to fake a 3D tumble
+            let w = f.size.width * abs(cos(f.rot))
+            r.quad(CGRect(x: f.p.x - w / 2, y: f.p.y - f.size.height / 2, width: max(1.5, w), height: f.size.height), f.color, radius: 1.5, alpha: a)
+        }
+        let rect = CGRect(x: size.width / 2 - 320, y: size.height / 2 - 215, width: 640, height: 430)
+        r.shadow(rect.offsetBy(dx: 0, dy: 20), radius: 28, blur: 40, opacity: 0.5 * a)
+        r.frosted(rect, tint: .rgba(0.97, 0.96, 0.98, 0.9), radius: 28, alpha: a)
+        r.image(c, rect, radius: 28, alpha: a)
     }
 
     func showPanic() {
@@ -397,7 +521,7 @@ final class World {
                 fade = 1
                 fadeColor = .rgba(0, 0, 0)
                 fadeFrom(duration: 1.2)
-                story.start()
+                if softBoot { softBoot = false; story.didRestart() } else { story.start() }
                 if let scene = ProcessInfo.processInfo.environment["FAKEOS_SCENE"] { debugScene(scene) }
             }
         }
@@ -437,6 +561,9 @@ final class World {
             w.update(dt)
         }
         windows.removeAll { $0.closing && $0.appear <= 0 }
+        let live = windows.filter { !$0.closing && !$0.isModal }
+        if live.count >= 2 && live.allSatisfy({ $0.isMinimized }) { story.allWindowsMinimized() }
+        if congrats != nil { congratsAlpha = min(1, congratsAlpha + dt * 0.8); updateConfetti(dt) }
 
         dock.update(dt)
         notifications.update(dt)
@@ -445,6 +572,7 @@ final class World {
         if ghostLayerDirty { ghostLayerDirty = false; drawGhostLayer() }
         desktop.redrawIfNeeded()
         menuBar.redrawIfNeeded()
+        (popup as? SpotlightPopup)?.tick(dt)
         popup?.redrawIfNeeded()
         windows.forEach { $0.redrawIfNeeded() }
 
@@ -549,6 +677,7 @@ final class World {
         r.image(menuBar.canvas, mb)
 
         notifications.draw(r)
+        drawCongratulations(r)
 
         if let p = popup {
             r.shadow(p.frame.offsetBy(dx: 0, dy: 6), radius: p.radius, blur: 16, opacity: 0.35)
@@ -595,8 +724,9 @@ final class World {
         target = .none
 
         if phase == .boot { return }
+        if congrats != nil && congratsAlpha > 0.6 { congrats = nil; confetti.removeAll(); return }
         if endCard != nil && endCardAlpha > 0.5 {
-            if endCardGood { endCard = nil } else { restart() }
+            if endCardGood { endCard = nil } else { endCard = nil; hardReset() }
             return
         }
         if phase == .panic { return }
@@ -618,7 +748,11 @@ final class World {
             return
         }
 
-        if let b = notifications.hit(c) { b.dismissed = true; return }
+        if let b = notifications.hit(c) {
+            b.dismissed = true
+            story.notificationClicked(b.app)
+            return
+        }
 
         if c.y < menuBar.height {
             menuBar.mouseDown(c)
@@ -670,6 +804,7 @@ final class World {
             openFinder(fs.trash)
         case .app(let a):
             if dock.allWren { launch(.wren); return }
+            story.dockClicked(a)
             let own = windows.filter { $0.app == a && !$0.closing && !($0 is AlertWindow) }
             if a == .wren || own.isEmpty {
                 if a != .wren && a != .settings { dock.bounce(it.kind) }
@@ -727,12 +862,14 @@ final class World {
 
     func keyDown(_ k: KeyInput) {
         if phase == .boot { return }
+        if congrats != nil && congratsAlpha > 0.6 { congrats = nil; confetti.removeAll(); return }
         if endCard != nil && endCardAlpha > 0.5 {
-            if endCardGood { endCard = nil } else { restart() }
+            if endCardGood { endCard = nil } else { endCard = nil; hardReset() }
             return
         }
         if phase == .panic { return }
         if k.isEscape && popup != nil { closePopup(); return }
+        if let sp = popup as? SpotlightPopup { sp.keyDown(k); return }
 
         let ch = k.chars.lowercased()
         let modal = windows.last { $0.isModal && !$0.closing }
@@ -751,7 +888,7 @@ final class World {
             if !k.shift && ch == "n" && !(keyWindow is TerminalWindow) { openFinder(fs.home); return }
             if !k.shift && ch == "n", keyWindow is TerminalWindow { launch(.terminal); return }
             if !k.shift && ch == "o" && keyWindow == nil { openSelectedDesktopItem(); return }
-            if ch == " " { story.ambientWhisper("you won't find her by searching."); return }
+            if ch == " " { openSpotlight(); return }
         }
         if let w = keyWindow, w.isKey {
             if w.keyDown(k) { return }
@@ -787,6 +924,15 @@ extension World {
             setBrightness(1)
             openFinder(fs.trash)
             after(2) { self.openWifiMenu() }
+        case "selftest":
+            runSelfTest()
+        case "spotlight":
+            story.openChapter(2, announce: false)
+            openNode(fs.wrenFolder.child("part 2.txt")!)
+            openSpotlight()
+            for ch in "lum" { (popup as? SpotlightPopup)?.keyDown(KeyInput(chars: String(ch), keyCode: 0, cmd: false, shift: false, option: false, control: false)) }
+        case "congrats":
+            showCongratulations()
         case "ending":
             story.stage = .unlocked
             story.wrenRunning = false
@@ -794,4 +940,107 @@ extension World {
         default: break
         }
     }
+}
+
+// MARK: - Self-test (FAKEOS_SELFTEST: drives every puzzle through the real hooks)
+extension World {
+    func runSelfTest() {
+        let s = story!
+        let fs: FileSystem = self.fs
+        var steps: [(String, () -> Void)] = []
+        func step(_ name: String, _ f: @escaping () -> Void) { steps.append((name, f)) }
+        let term = TerminalWindow(world: self)
+        open(term)
+        func lock(_ parent: FSNode, _ name: String, _ answer: String) -> () -> Void {
+            { if let n = parent.child(name) { _ = s.attemptUnlock(n, answer) } else { print("SELFTEST missing lock \(name)") } }
+        }
+        // I
+        step("dim") { self.setBrightness(0.05) }
+        step("wait") {}
+        step("wait") {}
+        step("bright") { self.setBrightness(1) }
+        step("wren folder") { self.openFinder(fs.wrenFolder) }
+        step("kill") { s.killWren(from: .terminal) }
+        step("heart") { _ = s.attemptUnlock(fs.heartLock, "317") }
+        step("who") { _ = s.ghostReply(to: "who are you?") }
+        step("wait") {}
+        step("wait") {}; step("wait") {}
+        // II (opens 3 s after chapter completes)
+        step("wait") {}
+        step("volume") { self.audio.master = 0; s.volumeChanged(0); self.audio.master = 0.8 }
+        step("history") { term.run("history") }
+        step("whoami") { s.killWren(from: .terminal); term.run("whoami") }
+        step("cal+birthday") { term.run("cal"); lock(fs.documents, "birthday.lock", "28")() }
+        step("mimic") { term.run("kill 2811") }
+        step("spotlight") { s.spotlightQuery("lumen") }
+        step("mochinet") { s.joinWifi("MochiNet", password: "mochi") }
+        step("dock") { [AppKind.finder, .textEdit, .terminal, .activity].forEach { s.dockClicked($0) } }
+        step("beach") { lock(fs.pictures, "beach.lock", "3")() }
+        step("sleep") { s.didWake() }
+        step("wait") {}
+        step("wait") {}; step("wait") {}
+        // III
+        step("b64") { term.run("cd ~/Documents/archive"); term.run("base64 -d note.b64") }
+        step("rev") { term.run("rev backwards.txt") }
+        step("grep") { term.run("grep ines wren.log") }
+        step("echo.lock") { lock(fs.documents.child("archive")!, "echo.lock", "echo")() }
+        step("find") { term.run("find / -name tooth") }
+        step("ping") { term.run("ping mochi") }
+        step("us") { self.openNode(fs.trash.child("old_photos")!.child("us.png")!) }
+        step("sudo") { term.run("sudo ls"); term.submitSudo("wren") }
+        step("man") { term.run("man wren") }
+        step("uptime") { term.run("uptime") }
+        step("wait") {}
+        step("wait") {}; step("wait") {}
+        // IV
+        step("cat") { s.previewClicked("cat", 0.8, 0.3) }
+        step("hand") { s.previewClicked("window", 0.4, 0.56) }
+        step("figure") { s.previewClicked("screenshot", 0.81, 0.73) }
+        step("battery") { s.batterySettings() }
+        step("focus") { s.focusTapped() }
+        step("clock") { s.clockClicked(); s.clockClicked(); s.clockClicked() }
+        step("about") { s.aboutMoreInfo() }
+        step("restart") { s.didRestart() }
+        step("select all") { s.desktopSelectedAll() }
+        step("minimize") { self.windows.forEach { $0.isMinimized = true } }
+        step("wait") {}
+        step("wait") {}
+        step("wait") {}; step("wait") {}
+        // V
+        step("where") { _ = s.ghostReply(to: "where is ines") }
+        step("goodnight") { _ = s.ghostReply(to: "goodnight") }
+        step("hollow") { _ = s.ghostReply(to: "hello HOLLOW") }
+        step("afraid") { _ = s.ghostReply(to: "i'm not afraid of you") }
+        step("time") { _ = s.ghostReply(to: "what time is it") }
+        step("echo") { term.run("echo ines") }
+        step("say") { term.run("say ines") }
+        step("wifi") { for _ in 0..<5 { _ = s.nextGhostNetwork() } }
+        step("notif") { s.notificationClicked(.wren) }
+        step("kills") { s.respawnWren(); s.killWren(from: .terminal); s.respawnWren(); s.killWren(from: .terminal) }
+        step("wait") {}
+        step("wait") {}; step("wait") {}
+        // VI
+        step("final.lock") { lock(fs.desktop.child("Recovered")!, "final.lock", "50")() }
+        step("lights") { self.setBrightness(0.5); self.setBrightness(1) }
+        step("trash") { self.openFinder(fs.trash) }
+        step("ls trash") { term.run("ls ~/.Trash") }
+        step("put back") {
+            print("SELFTEST solved before put back: \(s.solved.count) missing: \((1...49).filter { !s.isSolved($0) })")
+            s.putBack()
+        }
+        var t: Float = 0
+        for (name, f) in steps {
+            t += 1.0
+            after(t) {
+                f()
+                print("SELFTEST step \(name): solved=\(s.solved.count) chapter=\(s.chapter)")
+            }
+        }
+        after(t + 16) {
+            print("SELFTEST RESULT solved=\(s.solved.count) goodEnding=\(s.goodEnding) congrats=\(self.congratsShown)")
+            fflush(stdout)
+        }
+    }
+
+    var congratsShown: Bool { congratsVisible }
 }
