@@ -1,3 +1,5 @@
+<p align="center"><img src="Assets/AppIcon.png" width="200" alt="Fake OS icon"></p>
+
 # Fake OS
 
 A haunted fake macOS desktop built with Swift + Metal. Everything you see (the windows, files, Dock, menu bar, even the cursor) is drawn by the game. It reads no real files and touches nothing on your Mac.
@@ -26,6 +28,7 @@ swift run FakeOS --windowed           # 1440×900 window for development
 | `Finder`, `Terminal`, `ActivityMonitor`, `Windows` | Fake apps |
 | `Desktop`, `Dock`, `MenuBar`, `Notifications` | Shell chrome |
 | `FileSystem.swift` | Fake files and lore |
+| `AppIcon.swift` | The app icon, drawn in code (Dock icon at runtime + `.icns` via `build-app.sh`) |
 
 ## Spoilers: the puzzle chain
 

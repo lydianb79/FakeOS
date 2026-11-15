@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let windowed = CommandLine.arguments.contains("--windowed")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.applicationIconImage = AppIconArt.image()
         guard let device = MTLCreateSystemDefaultDevice() else {
             fatalError("Metal is not available on this Mac.")
         }
