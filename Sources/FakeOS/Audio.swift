@@ -91,7 +91,8 @@ final class Synth {
     func trigger(_ kind: SFX, gain: Float = 1, pan: Float? = nil, bypassMaster: Bool = false) {
         var v = makeVoice(kind, gain: gain, pan: pan ?? Float.random(in: -0.7...0.7))
         v.bypassMaster = bypassMaster
-        pending.withLock { $0.append(v) }
+        let voice = v
+        pending.withLock { $0.append(voice) }
     }
 
     private func makeVoice(_ k: SFX, gain: Float, pan: Float) -> Voice {

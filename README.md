@@ -47,6 +47,14 @@ swift run FakeOS --windowed           # 1440×900 window
 ./build-app.sh && open dist/FakeOS.app
 ```
 
+`build-app.sh` builds a universal (Apple silicon + Intel) `dist/FakeOS.app` and `dist/FakeOS.zip`. It renders the app icon from code and compiles it into an asset catalog (`Assets.car` + `AppIcon.icns`), and it stamps a build number. Set the version with `VERSION=1.0.1 ./build-app.sh`.
+
+**Blank icon on a local build?** If Finder showed the app at that path before it had an icon, macOS can keep that cached blank icon. Fresh copies, like a downloaded release, are unaffected. To clear the cache:
+
+```bash
+sudo rm -rf /Library/Caches/com.apple.iconservices.store && killall Dock Finder
+```
+
 ## How it's built
 
 - **Metal** draws everything. Each window, popup and banner is painted into a Core Graphics canvas and uploaded as a texture. Metal then draws those as quads, with rounded corners and soft shadows done as SDFs in the shader. The wallpaper is a procedural shader, and the frosted Dock and menu bar sample it. A post-process pass adds the glitches, chromatic split, static, the tear line, display brightness and the glowing writing that only shows in the dark.
@@ -63,7 +71,7 @@ swift run FakeOS --windowed           # 1440×900 window
 | `Finder`, `Terminal`, `ActivityMonitor`, `Windows` | Fake apps |
 | `Desktop`, `Dock`, `MenuBar`, `Notifications` | Shell chrome |
 | `FileSystem.swift` | Fake files and lore |
-| `AppIcon.swift` | The app icon, drawn in code (Dock icon at runtime + `.icns` via `build-app.sh`) |
+| `AppIcon.swift` | The app icon, drawn in code: the Dock icon at runtime, plus `Assets.car`/`.icns` via `build-app.sh` |
 
 ## The 50 puzzles
 

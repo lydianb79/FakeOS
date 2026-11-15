@@ -105,11 +105,11 @@ enum AppIconArt {
         // menu bar
         ctx.setFillColor(c(1, 1, 1, 0.13))
         ctx.fill(CGRect(x: body.minX, y: body.maxY - 58, width: body.width, height: 58))
-        drawHexagon(ctx, center: CGPoint(x: 200, y: body.maxY - 29), radius: 13, color: c(1, 1, 1, 0.9))
-        for (x, w) in [(236.0, 70.0), (322.0, 42.0), (380.0, 46.0)] as [(CGFloat, CGFloat)] {
-            rr(ctx, CGRect(x: x, y: body.maxY - 35, width: w, height: 12), 6, c(1, 1, 1, x == 236 ? 0.85 : 0.5))
+        drawHexagon(ctx, center: CGPoint(x: 290, y: body.maxY - 29), radius: 13, color: c(1, 1, 1, 0.9))
+        for (x, w) in [(326.0, 70.0), (412.0, 42.0), (470.0, 46.0)] as [(CGFloat, CGFloat)] {
+            rr(ctx, CGRect(x: x, y: body.maxY - 35, width: w, height: 12), 6, c(1, 1, 1, x == 326 ? 0.85 : 0.5))
         }
-        rr(ctx, CGRect(x: 730, y: body.maxY - 35, width: 112, height: 12), 6, c(1, 1, 1, 0.75))
+        rr(ctx, CGRect(x: 640, y: body.maxY - 35, width: 100, height: 12), 6, c(1, 1, 1, 0.75))
 
         // dock
         let dock = CGRect(x: 512 - 230, y: 132, width: 460, height: 78)
