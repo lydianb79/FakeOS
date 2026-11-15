@@ -8,13 +8,6 @@ Fake OS boots fullscreen into a convincing macOS-style desktop with its own Find
 
 Everything, including the cursor, is drawn by the game in Swift and Metal. It reads none of your files and changes nothing on your Mac.
 
-<p align="center">
-  <img src="Assets/screenshots/windows.jpg" width="49%" alt="Finder, Activity Monitor and a locked file">
-  <img src="Assets/screenshots/dark.jpg" width="49%" alt="Writing that only shows when the screen is dimmed">
-  <img src="Assets/screenshots/chat.jpg" width="49%" alt="The ghost typing in TextEdit">
-  <img src="Assets/screenshots/congrats.jpg" width="49%" alt="The Congratulations screen">
-</p>
-
 ## Download and play
 
 1. Download **FakeOS.zip** from the [latest release](https://github.com/lydianb79/FakeOS/releases/latest) and unzip it.
