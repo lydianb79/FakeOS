@@ -36,7 +36,7 @@ final class Notifications {
         let b = Banner(world: world, app: app, title: title, body: body)
         banners.insert(b, at: 0)
         if banners.count > 3 { banners.removeLast(banners.count - 3) }
-        world.audio.systemSound(app == .wren ? "Submarine" : "Glass")
+        if app == .wren { world.audio.play(.whisper, gain: 0.9) } else if app != .finder { world.audio.systemSound("Glass") }
     }
 
     func update(_ dt: Float) {

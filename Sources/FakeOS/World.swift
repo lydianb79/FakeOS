@@ -7,6 +7,8 @@ final class World {
     private(set) var scale: CGFloat
     let audio = Audio()
     let processes = ProcessTable()
+    private(set) var ambience: Ambience!
+    private var bootChimed = false
 
     // rebuilt on restart
     var fs: FileSystem!
@@ -27,6 +29,8 @@ final class World {
     var reveal: Float = 0
     var calmTarget: Float = 0
     private var calm: Float = 0
+    var calmLevel: Float { calm }
+    var bloodLevel: Float { blood }
     var bloodTarget: Float = 0
     private var blood: Float = 0
     var tear: Float = 0
@@ -75,6 +79,7 @@ final class World {
         self.scale = scale
         buildStatic()
         reset()
+        ambience = Ambience(world: self)
     }
 
     private func buildStatic() {
@@ -137,8 +142,14 @@ final class World {
 
     // MARK: - Effects API
 
-    func glitch(_ amount: Float) { glitchLevel = max(glitchLevel, amount) }
-    func shakeWindows(_ amount: Float) { shakeAmount = max(shakeAmount, amount) }
+    func glitch(_ amount: Float) {
+        glitchLevel = max(glitchLevel, amount)
+        if amount >= 0.45 { audio.zap(amount) }
+    }
+    func shakeWindows(_ amount: Float) {
+        if amount >= 0.6 && shakeAmount < 0.3 { audio.play(.thud, gain: amount) }
+        shakeAmount = max(shakeAmount, amount)
+    }
     func forceHaunt(_ v: Float) { haunt = v }
 
     func hijackCursor(to p: CGPoint, duration: Float) {
@@ -502,6 +513,7 @@ final class World {
                       font: Draw.mono(10), color: NSColor(white: 0.35, alpha: 1), align: .center)
         }
         panicCanvas = c
+        audio.play(.flatline)
         fade = 0
         fadeTarget = 0
         bloodTarget = 0
@@ -516,8 +528,10 @@ final class World {
 
         if phase == .boot {
             bootTime += dt
+            if bootTime > 0.35 && !bootChimed { bootChimed = true; audio.play(.bootChime) }
             if bootTime > 4.6 {
                 phase = .desktop
+                bootChimed = false
                 fade = 1
                 fadeColor = .rgba(0, 0, 0)
                 fadeFrom(duration: 1.2)
@@ -566,6 +580,7 @@ final class World {
         if congrats != nil { congratsAlpha = min(1, congratsAlpha + dt * 0.8); updateConfetti(dt) }
 
         dock.update(dt)
+        ambience?.update(dt, onDesktop: phase == .desktop, panic: phase == .panic)
         notifications.update(dt)
 
         // redraw dirty canvases
@@ -862,6 +877,7 @@ final class World {
 
     func keyDown(_ k: KeyInput) {
         if phase == .boot { return }
+        if !k.cmd && (!k.text.isEmpty || k.isReturn || k.isBackspace) { audio.keyClick() }
         if congrats != nil && congratsAlpha > 0.6 { congrats = nil; confetti.removeAll(); return }
         if endCard != nil && endCardAlpha > 0.5 {
             if endCardGood { endCard = nil } else { endCard = nil; hardReset() }

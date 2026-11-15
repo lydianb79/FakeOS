@@ -18,7 +18,7 @@ swift run FakeOS --windowed           # 1440×900 window for development
 
 - **Metal** draws everything. Each window, popup and banner is painted into a Core Graphics canvas and uploaded as a texture. Metal then draws those as quads, with rounded corners and soft shadows done as SDFs in the shader. The wallpaper is a procedural shader, and the frosted Dock and menu bar sample it. A post-process pass adds the glitches, chromatic split, static, the tear line, display brightness and the glowing writing that only shows in the dark.
 - **AppKit** is used only for the borderless fullscreen window, input, text and SF Symbols.
-- **AVAudioEngine** makes the procedural drone and static. Real system alert sounds are used for UI realism.
+- **Sound** is all synthesized live in a stereo `AVAudioSourceNode`, with no audio files (`Audio.swift`, `Ambience.swift`). It's 3:17 AM in a quiet apartment: room tone, wind, rain on the window, a fridge next door that cycles on and off, and a laptop fan that runs as hard as wren does. Kill wren and the fan spins down for 30 seconds. As the haunting grows you'll hear creaking floorboards, footsteps upstairs, knocks, whispers panned into one ear, breathing, and a heartbeat that speeds up (and jumps while you type a password). Cars pass in the rain, thunder rolls, and the frozen clock ticks once and then stops. At the good ending the rain stops, birds come out and the clock finally ticks. There are also key clicks, glitch zaps, a chime for each recovered piece, a chord when each chapter opens, a boot chord and a flatline. Real macOS alert sounds are used for dialogs.
 
 | File | What it does |
 |---|---|
@@ -26,6 +26,7 @@ swift run FakeOS --windowed           # 1440×900 window for development
 | `World.swift` | Window manager, input routing, effects, endings |
 | `Story.swift`, `Puzzles.swift` | Puzzle engine and the 50 puzzles, saves, scripted scares, ghost chat |
 | `Spotlight.swift` | Spotlight search over the fake disk |
+| `Audio.swift`, `Ambience.swift` | Stereo synth (ambience layers and 19 sound effects) and the director that drives it |
 | `Finder`, `Terminal`, `ActivityMonitor`, `Windows` | Fake apps |
 | `Desktop`, `Dock`, `MenuBar`, `Notifications` | Shell chrome |
 | `FileSystem.swift` | Fake files and lore |
@@ -100,4 +101,4 @@ wren broke Ines into **50 pieces**. Each puzzle recovers one, saved as a memory 
 Emptying the Trash at any point after the heart is unlocked triggers the bad ending, which erases your progress.
 </details>
 
-Dev helpers: `FAKEOS_SCENE=windows|dark|chat|ending|spotlight|congrats` stages a scene, `FAKEOS_SCENE=selftest` drives all 50 puzzles through the real game hooks and prints `SELFTEST RESULT …`, and `FAKEOS_FRESH=1` ignores saved progress.
+Dev helpers: `FAKEOS_SCENE=windows|dark|chat|ending|spotlight|congrats` stages a scene, `FAKEOS_SCENE=selftest` drives all 50 puzzles through the real game hooks and prints `SELFTEST RESULT …`, `FAKEOS_FRESH=1` ignores saved progress, and `FakeOS --render-audio out.wav` renders every ambience layer and sound effect offline for checking levels.

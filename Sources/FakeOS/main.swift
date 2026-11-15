@@ -14,6 +14,12 @@ if let i = CommandLine.arguments.firstIndex(of: "--export-icon"), i + 1 < Comman
     exit(0)
 }
 
+if let i = CommandLine.arguments.firstIndex(of: "--render-audio"), i + 1 < CommandLine.arguments.count {
+    // Dev helper: renders every sound offline to a WAV for checking levels.
+    renderAudioTest(to: CommandLine.arguments[i + 1])
+    exit(0)
+}
+
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate

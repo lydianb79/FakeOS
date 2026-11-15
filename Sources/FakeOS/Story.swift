@@ -90,7 +90,7 @@ final class Story {
         let p = Puzzles.get(id)
         addMemory(p)
         save()
-        world.audio.systemSound("Glass")
+        world.audio.play(.chime)
         world.notifyPiece(p, count: solved.count)
         if chapter > chapterBefore {
             let c = chapter
@@ -173,6 +173,7 @@ final class Story {
         }
         world.refreshFinders()
         if announce {
+            world.audio.play(.chapterChord)
             world.glitch(0.6)
             world.notify(.wren, "wren", ["fine. let's play.", "you keep finding her. stop.", "you're getting closer. i can feel it.",
                                          "she never got this far.", "no."][min(c - 2, 4)])
@@ -479,7 +480,11 @@ final class Story {
     }
 
     func volumeChanged(_ v: Float) {
-        if v < 0.02, solve(6) { after(1.5) { self.world.notify(.wren, "wren", "i'm still here. i don't need sound.") } }
+        if v < 0.02, solve(6) {
+            // the volume is at zero. it whispers anyway.
+            after(1.2) { self.world.audio.play(.whisper, gain: 0.8, pan: 0.9, bypassMaster: true) }
+            after(1.5) { self.world.notify(.wren, "wren", "i'm still here. i don't need sound.") }
+        }
     }
 
     func brightnessChanged(_ v: Float) {
