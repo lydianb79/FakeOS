@@ -8,6 +8,8 @@ Fake OS boots fullscreen into a convincing macOS-style desktop with its own Find
 
 Everything, including the cursor, is drawn by the game in Swift and Metal. It reads none of your files and changes nothing on your Mac.
 
+![Fake OS: Finder, Activity Monitor with the wren process, and a locked file asking for a password](Assets/screenshot.jpg)
+
 ## Download and play
 
 1. Download **FakeOS.zip** from the [latest release](https://github.com/lydianb79/FakeOS/releases/latest) and unzip it.
@@ -40,7 +42,7 @@ swift run FakeOS --windowed           # 1440×900 window
 ./build-app.sh && open dist/FakeOS.app
 ```
 
-`build-app.sh` builds a universal (Apple silicon + Intel) `dist/FakeOS.app` and `dist/FakeOS.zip`. It renders the app icon from code and compiles it into an asset catalog (`Assets.car` + `AppIcon.icns`), and it stamps a build number. Set the version with `VERSION=1.0.1 ./build-app.sh`.
+`build-app.sh` builds a universal (Apple silicon + Intel) `dist/FakeOS.app` and `dist/FakeOS.zip`. It renders the app icon from code and compiles it into an asset catalog (`Assets.car` + `AppIcon.icns`), and it stamps a build number. Set the version with `VERSION=1.2.0 ./build-app.sh`.
 
 **Blank icon on a local build?** If Finder showed the app at that path before it had an icon, macOS can keep that cached blank icon. Fresh copies, like a downloaded release, are unaffected. To clear the cache:
 
